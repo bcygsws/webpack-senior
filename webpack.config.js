@@ -67,7 +67,7 @@ module.exports = {
 							// minimize: false, //压缩css代码, 默认false
 							// 注意 : minimize这个属性移除了，这里设置不生效。
 							// 如果要对css代码压缩，可以使用插件optimize-css-assets-webpack-plugin
-							//  root: ‘/‘, //修改css中url指向的根目录, 默认值为/, 对于绝对路径, css-loader默认是不会对它进行处理的
+							//  root: '/', //修改css中url指向的根目录, 默认值为/, 对于绝对路径, css-loader默认是不会对它进行处理的
 							// modules: false, //开启css-modules模式, 默认值为flase
 							// localIdentName: ‘[name]-[local]-[hash:base64:5]‘, //设置css-modules模式下local类名的命名
 							// camelCase: false, //导出以驼峰化命名的类名, 默认false
