@@ -6,7 +6,7 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 // 单独抽取css文件
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 // 对css等样式文件进行压缩
-// const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 module.exports = {
 	// 入口起点，可以指定多个入口。声明使用绝对路径，保证不出错
 	// entry: path.resolve(__dirname, 'src/main.js'),
@@ -43,13 +43,13 @@ module.exports = {
 		new MiniCssExtractPlugin({
 			// 将所有的css、less、sass文件抽离出来，放在根目录下(打包后的dist/下)，并依据下面格式命名
 			filename: 'css/[name].[contenthash:8].css'
-		})
+		}),
 		// 压缩样式文件
-		// new OptimizeCssAssetsPlugin({
-		// 	cssProcessPluginOptions: {
-		// 		preset: ['default', { discardComments: { removeAll: true } }]
-		// 	}
-		// })
+		new OptimizeCssAssetsPlugin({
+			cssProcessPluginOptions: {
+				preset: ['default', { discardComments: { removeAll: true } }]
+			}
+		})
 	],
 	// 抽离公共模块，包括第三方库和自定义库
 	optimization: {
@@ -142,9 +142,12 @@ module.exports = {
 			// 处理index.html中的图片：webpack解析html标签中img引入的图片
 			// 参考文档：https://www.cnblogs.com/fightjianxian/p/12441638.html
 			{
-				test: /\.html$/i,
+				test: /\.(html|htm)$/i,
 				// use: 'html-withimg-loader'
-				use: 'html-loader'
+				// html-loader解析图片，依据的是项目中原来index.html<img src="./images/bale.jpg"/>的位置；而html-withimg-loader则依据的是托管在内存中的根路径
+				use: {
+					loader: 'html-loader'
+				}
 			},
 			// url-loader和file-loader是什么关系呢？简答地说，url-loader封装了file-loader。url-loader不依赖于
 			// file-loader，即使用url-loader时，只需要安装url-loader即可，不需要安装file-loader，因为url-loader
@@ -156,6 +159,7 @@ module.exports = {
 			{
 				test: /\.(jpeg|bmp|png|jpg|gif)$/i,
 				use: {
+					// 图片大小126428
 					loader: 'url-loader',
 					options: {
 						esModule: false, // 新版file-loader使用了ES Module模块化方式，为避免和html-loader采用的common.js冲突，
