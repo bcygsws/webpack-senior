@@ -35,3 +35,10 @@
 -   在根目录包管理文件 package.json 中，scripts 中增加一个节点，命名为"pub"，其值配置为"webpack --config webpack.pub.config.js"，然后项目路径下，npm run pub 就可以打包了
 
 #### 多次打包，上次打包的旧包清理，使用clean-webpack-plugin@4.0.0插件,然后在 plugins 节点中引入一个实例对象
+
+#### 发布策略：bundle.js 中只存放自己的代码，第三方包的代码全部抽离到一个另外 js
+
+#### 抽离 CSS/less/sass
+
+-   webpack4 中抽离样式，使用 mini-css-extract-plugin 插件
+-   在配置文件中完成配置：先导入插件完成后，同样在 plugins 节点中实例化，传入一个对象参数，{filename:''},filename 命名了所有的 css、less、sass 打包在一个文件中文件名[name].[contenthash:8].css 报错：ValidationError: CSS Loader Invalid Options ;options should NOT have additional properties。原因是css-loader@3.0.0的版本过高。将版本降低为@0.28.7 后，问题解决

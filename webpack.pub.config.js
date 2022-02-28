@@ -3,11 +3,18 @@ const path = require('path');
 const htmlWebpackPlugin = require('html-webpack-plugin');
 // 多次打包有不同版本之间的切换，安装clean-webpack-plugin可以自动删除上一次的打包文件
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+// 单独抽取css文件
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 module.exports = {
 	// 告诉webpack是开发环境还是生产环境
 	mode: 'development', // 其他值包括"production","none"
 	// 入口起点，可以指定多个入口。声明使用绝对路径，保证不出错
-	entry: path.resolve(__dirname, 'src/main.js'),
+	// entry: path.resolve(__dirname, 'src/main.js'),
+	// 抽离第三方包，entry改成一个对象
+	entry: {
+		app: path.resolve(__dirname, 'src/main.js'),
+		jq: 'jquery'
+	},
 	// 输出配置
 	output: {
 		// 输出，只能指定一个输出路径
@@ -31,25 +38,57 @@ module.exports = {
 			// 托管后文件名仍叫做index.html
 			filename: 'index.html'
 		}),
-		new CleanWebpackPlugin()
+		new CleanWebpackPlugin(),
+		new MiniCssExtractPlugin({
+			// 将所有的css、less、sass文件抽离出来，放在根目录下(打包后的dist/下)，并依据下面格式命名
+			filename: '[name].[contenthash:8].css'
+		})
 	],
+	// 抽离公共模块，包括第三方库和自定义库
+	optimization: {
+		splitChunks: {
+			chunks: 'all', // async表示抽取异步模块，all表示对所有模块生效，initial表示对同步模块生效
+			cacheGroups: {
+				// 单独提取JS文件引入html
+				vendors: {
+					// 抽离第三方库
+					// 键值可以自定义
+					test: /[\\/]node_modules[\\/]/,
+					// chunks: 'initial',
+					name: 'jq', // 入口的entry的key
+					enforce: true, // 强制
+					priority: 10, // 抽离优先级,加了权重先抽离第三方模块
+					minSize: 0, // 大于0字节
+					minChunks: 1, //在分割之前，这个代码至少被引用1次
+					reuseExistingChunk: true
+				}
+			}
+		},
+		// 为 webpack 运行时代码创建单独的chunk
+		runtimeChunk: {
+			name: 'manifest'
+		}
+	},
 	module: {
 		rules: [
 			// 配置解析样式或其他文件的loader
 			// .css文件
 			{
 				test: /\.css$/,
-				use: ['style-loader', 'css-loader']
+				// style-loader换成MiniCssExtractPlugin.loader后即可完成对css的抽离
+				use: [MiniCssExtractPlugin.loader, 'css-loader']
 			},
 			{
 				test: /\.scss|sass$/,
 				use: [
-					'style-loader',
+					MiniCssExtractPlugin.loader,
 					{
 						loader: 'css-loader',
 						options: {
 							url: true,
-							import: true
+							import: true,
+							modules: true,
+							localIdentName: '[local]--[hash:base64:5]'
 						}
 					},
 					'postcss-loader',
@@ -59,13 +98,15 @@ module.exports = {
 			{
 				test: /\.less$/,
 				use: [
-					'style-loader',
+					MiniCssExtractPlugin.loader,
 					{
 						loader: 'css-loader',
 						// 参考文档：https://blog.csdn.net/m0_45315697/article/details/106446801
 						options: {
 							url: true,
-							import: true
+							import: true,
+							modules: true,
+							localIdentName: '[local]--[hash:base64:5]'
 							// url: true, //启用url，默认true，如果设置false，则页面只是默认样式
 							// import: true, //禁止或启用@import, 默认true
 							// minimize: false, //压缩css代码, 默认false
