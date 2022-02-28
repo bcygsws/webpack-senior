@@ -1,3 +1,7 @@
+/* add.less样式 */
+#app {
+  /* background:bg-color bg-image position/bg-size bg-repeat bg-origin bg-clip bg-attachment initial|inherit; */
+}
 #app ul li {
   font-weight: 700;
   font-style: italic;
@@ -5,7 +9,6 @@
 #app .box {
   width: 500px;
   height: 500px;
-  /* background:bg-color bg-image position/bg-size bg-repeat bg-origin bg-clip bg-attachment initial|inherit; */
   background: url('../images/child.jpg');
   background-size: cover;
 }

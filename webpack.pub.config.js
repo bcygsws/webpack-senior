@@ -5,30 +5,30 @@ const htmlWebpackPlugin = require('html-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 // 单独抽取css文件
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+// 对css等样式文件进行压缩
+// const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 module.exports = {
-	// 告诉webpack是开发环境还是生产环境
-	mode: 'development', // 其他值包括"production","none"
 	// 入口起点，可以指定多个入口。声明使用绝对路径，保证不出错
 	// entry: path.resolve(__dirname, 'src/main.js'),
 	// 抽离第三方包，entry改成一个对象
 	entry: {
 		app: path.resolve(__dirname, 'src/main.js'),
-		jq: 'jquery'
+		vendors1: ['jquery']
 	},
 	// 输出配置
 	output: {
 		// 输出，只能指定一个输出路径
 		path: path.resolve(__dirname, 'dist'),
-		filename: 'bundle.js',
+		filename: 'js/[name].[hash:8].js'
 		// 相对于html页面，解析的输出目录
-		publicPath: '/',
+		// publicPath: '/'
 		// 关于library和libraryTarget参考文档：https://segmentfault.com/a/1190000017960583
 		// 事实上，你可以选择的选项有：
 		// commonjs/commonjs2: 将你的library暴露为CommonJS模块
 		// amd: 将你的library暴露为amd模块
 		// umd: 将你的library暴露为所有的模块定义下都可运行的方式
-		library: 'my-library', // 导出库的名称
-		libraryTarget: 'umd' // 默认值是var,将组件库的入口起点设置为一个变量。assign则是生成一个全局变量
+		// library: 'my-library', // 导出库的名称
+		// libraryTarget: 'umd' // 默认值是var,将组件库的入口起点设置为一个变量。assign则是生成一个全局变量
 		// 配置输出模块的编码格式，umd表示universal module definition ，即支持所有情况的自定义，可以是var,window,global,umd等其他值
 	},
 	plugins: [
@@ -39,10 +39,17 @@ module.exports = {
 			filename: 'index.html'
 		}),
 		new CleanWebpackPlugin(),
+		// 抽离样式文件插件
 		new MiniCssExtractPlugin({
 			// 将所有的css、less、sass文件抽离出来，放在根目录下(打包后的dist/下)，并依据下面格式命名
-			filename: '[name].[contenthash:8].css'
+			filename: 'css/[name].[contenthash:8].css'
 		})
+		// 压缩样式文件
+		// new OptimizeCssAssetsPlugin({
+		// 	cssProcessPluginOptions: {
+		// 		preset: ['default', { discardComments: { removeAll: true } }]
+		// 	}
+		// })
 	],
 	// 抽离公共模块，包括第三方库和自定义库
 	optimization: {
@@ -55,7 +62,8 @@ module.exports = {
 					// 键值可以自定义
 					test: /[\\/]node_modules[\\/]/,
 					// chunks: 'initial',
-					name: 'jq', // 入口的entry的key
+					name: 'vendors1', // 入口的entry的key
+					filename: 'js/jquery.js',
 					enforce: true, // 强制
 					priority: 10, // 抽离优先级,加了权重先抽离第三方模块
 					minSize: 0, // 大于0字节
@@ -79,16 +87,16 @@ module.exports = {
 				use: [MiniCssExtractPlugin.loader, 'css-loader']
 			},
 			{
-				test: /\.scss|sass$/,
+				test: /\.(scss|sass)$/,
 				use: [
-					MiniCssExtractPlugin.loader,
+					{
+						loader: MiniCssExtractPlugin.loader
+					},
 					{
 						loader: 'css-loader',
 						options: {
-							url: true,
-							import: true,
-							modules: true,
-							localIdentName: '[local]--[hash:base64:5]'
+							url: false,
+							importLoaders: 2
 						}
 					},
 					'postcss-loader',
@@ -103,10 +111,14 @@ module.exports = {
 						loader: 'css-loader',
 						// 参考文档：https://blog.csdn.net/m0_45315697/article/details/106446801
 						options: {
+							// url设定为false,webpack不会解析url中路径,会产生一个问题。本案例中add.less中有一个url路径，路径引用了图片。
+							// 后面再打包图片时，图片名称中用到了hash。因此，解析add.less文件中options url必须为true,如果在sass和css中有类似
+							// url的路径,毫无疑问，也必须让options选项中url为true
 							url: true,
-							import: true,
-							modules: true,
-							localIdentName: '[local]--[hash:base64:5]'
+							importLoaders: 2 // 就算使用import样式，也会执行会面的loader
+							// modules: true,
+							// localIdentName: '[local]--[hash:base64:5]',
+							// import: true,
 							// url: true, //启用url，默认true，如果设置false，则页面只是默认样式
 							// import: true, //禁止或启用@import, 默认true
 							// minimize: false, //压缩css代码, 默认false
@@ -130,13 +142,9 @@ module.exports = {
 			// 处理index.html中的图片：webpack解析html标签中img引入的图片
 			// 参考文档：https://www.cnblogs.com/fightjianxian/p/12441638.html
 			{
-				test: /\.(html|htm)$/i,
-				use: {
-					loader: 'html-withimg-loader',
-					options: {
-						outputPath: './assets/'
-					}
-				}
+				test: /\.html$/i,
+				// use: 'html-withimg-loader'
+				use: 'html-loader'
 			},
 			// url-loader和file-loader是什么关系呢？简答地说，url-loader封装了file-loader。url-loader不依赖于
 			// file-loader，即使用url-loader时，只需要安装url-loader即可，不需要安装file-loader，因为url-loader
@@ -146,12 +154,14 @@ module.exports = {
 			// 处理css中的url图片，webpack解析css路径中的url图片。图片压缩和浏览器加前缀还要用到file-loader，因此file-loader
 			// 最好也安装一下
 			{
-				test: /\.(bmp|png|jpg|gif)$/,
+				test: /\.(jpeg|bmp|png|jpg|gif)$/i,
 				use: {
 					loader: 'url-loader',
 					options: {
-						esModule: false, // 新版file-loader使用了ES Module模块化方式，将esModule配置为false就可以解决这个问题
-						outputPath: './assets/',
+						esModule: false, // 新版file-loader使用了ES Module模块化方式，为避免和html-loader采用的common.js冲突，
+						// 将esModule配置为false就可以解决这个问题
+						outputPath: './images',
+						publicPath: '../images', // 必须有，否则打包时，抽离的样式中url(/images)图片变成了和css同级了
 						// child.jpg图片大写为213,721
 						// limit: 214000, // 图片大小小于limit,图片转化为base64格式
 						limit: 213000, // 需要安装file-loader，limit<图片实际值，才会显示name格式的名字
