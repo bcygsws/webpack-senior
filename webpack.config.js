@@ -7,6 +7,8 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 // 对css等样式文件进行压缩
 const OptimizeCssAssetsWebpackPlugin = require('optimize-css-assets-webpack-plugin');
+// 压缩js代码uglifyjs-webpack-plugin
+const UglifyJS = require('uglifyjs-webpack-plugin');
 module.exports = {
 	mode: 'development',
 	// 入口起点，可以指定多个入口。声明使用绝对路径，保证不出错
@@ -53,6 +55,7 @@ module.exports = {
 		}),
 		// 压缩样式文件
 		new OptimizeCssAssetsWebpackPlugin({
+			// 配置css处理插件选项
 			cssProcessPluginOptions: {
 				preset: ['default', { discardComments: { removeAll: true } }]
 			}
@@ -70,6 +73,7 @@ module.exports = {
 					test: /[\\/]node_modules[\\/]/,
 					// chunks: 'initial',
 					name: 'vendors1', // 入口的entry的key
+					// 小经验：filename：节点不仅可以设置打包文件名还可以设置打包路径，output节点中也是类似情况
 					filename: 'js/jquery.js',
 					enforce: true, // 强制
 					priority: 10, // 抽离优先级,加了权重先抽离第三方模块
@@ -82,7 +86,19 @@ module.exports = {
 		// 为 webpack 运行时代码创建单独的chunk
 		runtimeChunk: {
 			name: 'manifest'
-		}
+		},
+		// 压缩js
+		minimizer: [
+			new UglifyJS({
+				include: /\.js$/,
+				parallel: true, // 采用多线程并发
+				uglifyOptions: {
+					output: {
+						comments: false // 删除代码中的注释
+					}
+				}
+			})
+		]
 	},
 	module: {
 		rules: [
@@ -113,7 +129,12 @@ module.exports = {
 			{
 				test: /\.less$/,
 				use: [
-					MiniCssExtractPlugin.loader,
+					{
+						loader: MiniCssExtractPlugin.loader,
+						options: {
+							publicPath: '../'
+						}
+					},
 					{
 						loader: 'css-loader',
 						// 参考文档：https://blog.csdn.net/m0_45315697/article/details/106446801
@@ -163,22 +184,66 @@ module.exports = {
 			// 直接传给file-loader。因此我们只需要安装url-loader即可
 			// 处理css中的url图片，webpack解析css路径中的url图片。图片压缩和浏览器加前缀还要用到file-loader，因此file-loader
 			// 最好也安装一下
+			/**
+			 *
+			 * bug:html中的图片和样式文件url路径中的图片的路径纠缠：
+			 * 注意：html-loader中处理的是打包前路径的相对关系
+			 * a.因此index.html中图片中src="./images/bale.jpg"。打包后，图片仍然放在了images文件夹中了，路径相对关系不变。
+			 * 由于html-loader处理了html中的图片仍然要走url-loader加载器，那么url-loader之后的options选项中就不能配置
+			 * publicPath:'../images'(如果项目中仅仅css中有引入图片，完全可以这么做)或者../来调和打包后图片的路径
+			 * b.如果是html和css中都存在图片,html中图片路径相对位置不变，而且处理html中图片的html-loader处理完成后，还要
+			 * 交给url-loader处理，比如outPath:'./images',指示两种图片都打包在dist/images文件夹下。同时，limit(取两个图片大
+			 * 小的最小值both_min，limit<最小值box_min,就可以实现图片都不打包成base64格式)。
+			 * url中引入的图片路径：打包前url('../images/child.jpg') ，打包后url被解析成了url('/images/child.jpg')。需要提高
+			 * 访问级别，在rules:[],{test:/\.less$/,use:{
+			 * 		loader:MiniCssExtractPlugin.loader,
+			 * 		options:{
+			 * 		      // 将被url-loader处理器降低访问层级后的图片，访问级别抬高，即解析后的/images/child.jpg变成../images/child.jpg
+			 * 					publicPath:'../'
+			 * 						}
+			 * }}
+			 */
 			{
 				test: /\.(jpeg|bmp|png|jpg|gif)$/i,
-				use: {
-					// 图片大小126428
-					loader: 'url-loader',
-					options: {
-						esModule: false, // 新版file-loader使用了ES Module模块化方式，为避免和html-loader采用的common.js冲突，
-						// 将esModule配置为false就可以解决这个问题
-						outputPath: './images',
-						publicPath: '../images', // 必须有，否则打包时，抽离的样式中url(/images)图片变成了和css同级了
-						// child.jpg图片大写为213,721
-						// limit: 214000, // 图片大小小于limit,图片转化为base64格式
-						limit: 213000, // 需要安装file-loader，limit<图片实际值，才会显示name格式的名字
-						name: '[name]-[hash:8].[ext]'
+				use: [
+					{
+						// 图片大小126428
+						loader: 'url-loader',
+						options: {
+							esModule: false, // 新版file-loader使用了ES Module模块化方式，为避免和html-loader采用的common.js冲突，
+							// 将esModule配置为false就可以解决这个问题
+							outputPath: './images',
+							// publicPath: '../images', // 必须有，否则打包时，抽离的样式中url(/images)图片变成了和css同级了
+							// child.jpg图片大写为213,721
+							// limit: 214000, // 图片大小小于limit,图片转化为base64格式
+							limit: 120 * 1024, // 图片的大小1个为123k,一个为208k。取两个最小值。limit小于最小值，才会打包成图片需要安装file-loader，limit<图片实际值，才会显示name格式的名字
+							name: '[name]-[hash:8].[ext]'
+						}
+					},
+					{
+						loader: 'image-webpack-loader',
+						options: {
+							mozjpeg: {
+								progressive: true
+							},
+							// optipng.enabled: false will disable optipng
+							optipng: {
+								enabled: false
+							},
+							pngquant: {
+								quality: [0.65, 0.9],
+								speed: 4
+							},
+							gifsicle: {
+								interlaced: false
+							},
+							// the webp option will enable WEBP
+							webp: {
+								quality: 75
+							}
+						}
 					}
-				}
+				]
 			},
 			// 解析js或者jsx文件的新语法
 			{
