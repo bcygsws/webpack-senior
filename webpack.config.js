@@ -6,7 +6,7 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 // 单独抽取css文件
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 // 对css等样式文件进行压缩
-const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+const OptimizeCssAssetsWebpackPlugin = require('optimize-css-assets-webpack-plugin');
 module.exports = {
 	mode: 'development',
 	// 入口起点，可以指定多个入口。声明使用绝对路径，保证不出错
@@ -37,16 +37,22 @@ module.exports = {
 			// 托管的模板
 			template: path.resolve(__dirname, 'src/index.html'),
 			// 托管后文件名仍叫做index.html
-			filename: 'index.html'
+			filename: 'index.html',
+			// 压缩html文件
+			minify: {
+				collapseWhitespace: true, // 去除空格
+				removeComments: true, // 移除注释
+				removeAttributeQuotes: true // 移除属性中的引号
+			}
 		}),
 		new CleanWebpackPlugin(),
-		// 抽离样式文件插件
+		// 抽离样式文件插件,webpack4以前使用ExtractTextWebpackPlugin抽取样式
 		new MiniCssExtractPlugin({
 			// 将所有的css、less、sass文件抽离出来，放在根目录下(打包后的dist/下)，并依据下面格式命名
 			filename: 'css/[name].[contenthash:8].css'
 		}),
 		// 压缩样式文件
-		new OptimizeCssAssetsPlugin({
+		new OptimizeCssAssetsWebpackPlugin({
 			cssProcessPluginOptions: {
 				preset: ['default', { discardComments: { removeAll: true } }]
 			}
